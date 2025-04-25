@@ -1,5 +1,26 @@
 import streamlit as st
 
+# Fix for asyncio and PyTorch event loop
+import os
+os.environ["PYTHONWARNINGS"] = "ignore"  # Suppress warnings
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+# Create and set event loop policy first, before any other imports
+if not asyncio._get_running_loop():
+    try:
+        import nest_asyncio
+        nest_asyncio.apply()
+    except ImportError:
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        except Exception as e:
+            pass
+
+# Use ThreadPoolExecutor to avoid event loop conflicts
+executor = ThreadPoolExecutor(max_workers=5)
+
 # Streamlit app - set_page_config must be the first Streamlit command
 st.set_page_config(
     page_title="Yoga- Find Your Perfect Pose",
@@ -8,17 +29,6 @@ st.set_page_config(
 )
 
 import asyncio
-
-# Fix for asyncio/PyTorch event loop error
-try:
-    import nest_asyncio
-    nest_asyncio.apply()
-except ImportError:
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    except Exception as e:
-        pass
 
 try:
     from langchain_pinecone import PineconeVectorStore
