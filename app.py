@@ -1,13 +1,40 @@
 import streamlit as st
-from langchain_pinecone import PineconeVectorStore
-from langchain_huggingface import HuggingFaceEmbeddings
-from PIL import Image
-import requests
-import io
-import os
-import json
-import logging
-from pinecone import Pinecone
+
+# Streamlit app - set_page_config must be the first Streamlit command
+st.set_page_config(
+    page_title="Yoga- Find Your Perfect Pose",
+    page_icon="🧘",
+    layout="wide"
+)
+
+import asyncio
+
+# Fix for asyncio/PyTorch event loop error
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    except Exception as e:
+        pass
+
+try:
+    from langchain_pinecone import PineconeVectorStore
+    from langchain_huggingface import HuggingFaceEmbeddings
+    from PIL import Image
+    import requests
+    import io
+    import os
+    import json
+    import logging
+    # Import pinecone-client specifically (not the newer pinecone package)
+    import pinecone
+except ImportError as e:
+    st.error(f"Failed to import required libraries: {e}")
+    st.info("Please check your requirements.txt and make sure all dependencies are installed correctly.")
+    st.stop()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -108,39 +135,67 @@ try:
     load_dotenv()
     logger.info("Environment variables loaded")
 except ImportError:
-    logger.warning("python-dotenv not installed; using hardcoded API key")
+    logger.warning("python-dotenv not installed; using environment variables directly")
 
-# Set Pinecone API key
-if "PINECONE_API_KEY" not in os.environ:
-    os.environ["PINECONE_API_KEY"] = "pcsk_2maiCQ_Hu1RBR1wHMwXJHgeW53oitZ5bwcbuH68BbCq8aHDiV5mqEueENZQQJUGdc1XB3m"
-
-# Initialize Pinecone
+# Safe Pinecone initialization with backward compatibility
 try:
-    pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
-    logger.info("Pinecone initialized successfully")
+    api_key = os.environ.get("PINECONE_API_KEY", "")
+    if not api_key:
+        st.error("PINECONE_API_KEY not found in environment variables")
+        st.info("Please set your Pinecone API key in the Streamlit Cloud Secrets management")
+        st.stop()
+        
+    # Handle both new and old Pinecone client versions
+    try:
+        # Try the newer Pinecone client version
+        from pinecone import Pinecone
+        pc = Pinecone(api_key=api_key)
+        logger.info("Initialized Pinecone with newer client version")
+    except (ImportError, AttributeError):
+        # Fall back to older pinecone-client
+        import pinecone
+        pinecone.init(api_key=api_key)
+        pc = pinecone  # Just use the module as the client
+        logger.info("Initialized Pinecone with legacy client")
+        
 except Exception as e:
-    logger.error(f"Failed to initialize Pinecone: {e}")
-    raise
+    st.error(f"Failed to initialize Pinecone: {e}")
+    st.info("Check your Pinecone API key and network connection")
+    st.stop()
 
-# Initialize embeddings
+# Initialize embeddings - with error handling
 try:
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     logger.info("Embeddings initialized successfully")
 except Exception as e:
-    logger.error(f"Failed to initialize embeddings: {e}")
-    raise
+    st.error(f"Failed to initialize embeddings: {e}")
+    logger.error(f"Embedding initialization error: {e}")
+    st.stop()
 
-# Load vector store
+# Load vector store - with compatibility for both Pinecone client versions
 index_name = "yoga-poses"
 try:
+    # Check if index exists with compatibility for both API versions
+    try:
+        # Newer Pinecone client
+        index_exists = index_name in pc.list_indexes().names()
+    except AttributeError:
+        # Older pinecone-client
+        index_exists = index_name in pinecone.list_indexes()
+        
+    if not index_exists:
+        st.error(f"Pinecone index '{index_name}' not found. Please run load.py first.")
+        st.stop()
+        
     vector_store = PineconeVectorStore(
         index_name=index_name,
         embedding=embeddings
     )
     logger.info("Vector store loaded successfully")
 except Exception as e:
-    logger.error(f"Failed to load vector store: {e}")
-    raise
+    st.error(f"Failed to load vector store: {e}")
+    logger.error(f"Vector store error: {e}")
+    st.stop()
 
 # Load pose types
 try:

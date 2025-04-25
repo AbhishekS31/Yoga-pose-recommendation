@@ -1,29 +1,29 @@
 # Core dependencies
-streamlit
-langchain
-langchain-community
-langchain-core
-langchain-huggingface
-langchain-pinecone
+streamlit==1.32.0
+langchain==0.1.0
+langchain-community==0.0.16
+langchain-core==0.1.15
+langchain-huggingface==0.0.7
+langchain-pinecone==0.0.2
 
 # Vector database
-pinecone
-pinecone-client
+pinecone-client==2.2.4
+# Remove 'pinecone' as it's causing conflicts - we only need pinecone-client
 
 # ML & embeddings
-sentence-transformers
-transformers
-torch
-accelerate
+sentence-transformers==2.2.2
+transformers==4.35.0
+torch==2.0.1
+accelerate==0.23.0
 
 # Image handling
-pillow
-requests
+pillow==10.1.0
+requests==2.31.0
 
 # Environment & utility
-python-dotenv
-watchdog
-pydantic
+python-dotenv==1.0.0
+watchdog==3.0.0
+pydantic==2.5.2
 
 # Web runtime
-nest-asyncio
+nest-asyncio==1.5.8
