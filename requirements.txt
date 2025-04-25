@@ -7,6 +7,7 @@ langchain-huggingface
 langchain-pinecone
 
 # Vector database
+pinecone
 pinecone-client
 
 # ML & embeddings
